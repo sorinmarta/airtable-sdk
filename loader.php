@@ -20,6 +20,7 @@ class loader
     public function __construct()
     {
         $this->requireAirtable();
+        $this->requireRequest();
     }
 
     // The function that takes care of defining the basic location of the classes
@@ -32,6 +33,12 @@ class loader
     private function requireAirtable()
     {
         require_once($this->getClassDirectory().'Airtable.php');
+    }
+
+    // The function that imports the Request class
+    private function requireRequest()
+    {
+        require_once($this->getClassDirectory().'Request.php');
     }
 }
 
