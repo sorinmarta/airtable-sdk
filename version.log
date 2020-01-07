@@ -1,0 +1,25 @@
+- 0.0.0 -
+
+Initial plan created
+
+- 0.0.1 -
+
+The loader functionality and some basic string validation for the Airtable object were added to the project.
+
+- 0.0.2 -
+
+The basic Airtable functionality was created.
+
+Now the script is able to set Airtable arguments and to test the connection when the Airtable object is called
+
+- 0.0.3 -
+
+A new error system was added so that way errors will be handled easily
+
+- 0.0.4 -
+
+The Request object was created with all it's validations
+
+- 0.0.5 -
+
+The first POST method was added to the Request object
