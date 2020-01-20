@@ -19,8 +19,8 @@ class loader
     // The constructor that launches all the functions
     public function __construct()
     {
-        $this->requireAirtable();
         $this->requireRequest();
+        $this->requireAirtable();
     }
 
     // The function that takes care of defining the basic location of the classes

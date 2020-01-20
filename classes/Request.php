@@ -1,82 +1,48 @@
 <?php
 
-//TODO
-
-// Figure what data is needed from the user
-
-// * Request type [!]
-// * Search by formula value [!]
-// * Field Data Array [!]
-// * Records limit [!]
-
-// * AT Key [!]
-// * AT Base [!]
-// * AT Table [!]
-// * AT Endpoint [!]
-
-// Create the data validator[!]
-// Create the constructor that verifies the passed data and launches the required function depending on what kind of request is set
-// Create the first request methods
-// Refactor
-
-
 namespace SorinMartaAirtable;
 
+/**
+ * Class Request
+ * @package SorinMartaAirtable
+ *
+ * This class is responsible with all the requests that are going to be sent to the Airtable API and also with the error handling
+ */
 
-class Request extends Airtable
+class Request
 {
-    private $temporaryResponse;
+    // The Airtable credentials
+    protected $ATKey;
+    protected $ATBase;
+    protected $ATEndpoint;
+    protected $ATTable;
 
+    // Constructor arguments
+    protected $filterByFormula;
+    protected $recordsLimit;
+    protected $fieldArrayData;
+
+    // Utilities
+    protected $errors;
+    private   $temporaryResponse;
+
+    // Launches the element, validates the data and assigns the data to the class properties
     public function __construct($args)
     {
-        $this->showResponse = false;
-
         $this->validateData($args);
+        $this->dataAssign($args);
     }
 
-    private function validateData($args)
+    // Validates the data
+    protected function validateData($args)
     {
-        /**
-         * Request Type
-         */
-
-        if (!isset($args['requestType'])){
-            die('Post Type is not set');
-        }
-
-        $is_request_type = false;
-
-        if($args['requestType'] == 'POST'){
-            $is_request_type = true;
-        }
-
-        if($args['requestType'] == 'PUT'){
-            $is_request_type = true;
-        }
-
-        if($args['requestType'] == 'PATCH'){
-            $is_request_type = true;
-        }
-
-        if($args['requestType'] == 'GET'){
-            $is_request_type = true;
-        }
-
-        if($args['requestType'] == 'DELETE'){
-            $is_request_type = true;
-        }
-
-        if (!$is_request_type){
-            die('The post type is not correct... ');
-        }
-
         /**
          * Search by Formula
          */
 
-        if (isset($args['searchByFormula'])){
-            if(empty($args['searchByFormula'])){
-                die('Search by Formula value is empty');
+        if (isset($args['filterByFormula'])){
+            if(empty($args['filterByFormula'])){
+                $this->addError('Filter by Formula value is empty');
             }
         }
 
@@ -84,22 +50,20 @@ class Request extends Airtable
          * Field Data
          */
 
-//        if (isset($args['fieldData'])){
-//            if (is_array($args['fieldData'])){
-//                die('The data field must be an array');
-//            }
-//        }
+        if (isset($args['fieldData'])){
+            if (!is_array($args['fieldData'])){
+                $this->addError('The data field must be an array');
+            }
+        }
 
         /**
          * Records limit
          */
 
-        if (!isset($args['recordsLimit'])){
-            die('Records limit is not set');
-        }
-
-        if (!is_string($args['recordsLimit'])){
-            die('The records limit must be a string (between quotes)');
+        if(isset($args['recordsLimit'])) {
+            if (!is_string($args['recordsLimit'])) {
+                $this->addError('The records limit must be a string (between quotes)');
+            }
         }
 
         /**
@@ -107,7 +71,7 @@ class Request extends Airtable
          */
 
         if (!isset($args['ATKey'])){
-            die('You need to configure the Airtable Key');
+            $this->addError('You need to configure the Airtable Key');
         }
 
         /**
@@ -115,7 +79,7 @@ class Request extends Airtable
          */
 
         if (!isset($args['ATBase'])){
-            die('You need to configure the Airtable Base');
+            $this->addError('You need to configure the Airtable Base');
         }
 
         /**
@@ -123,7 +87,7 @@ class Request extends Airtable
          */
 
         if (!isset($args['ATTable'])){
-            die('You need to configure the Airtable Table');
+            $this->addError('You need to configure the Airtable Table');
         }
 
         /**
@@ -131,24 +95,61 @@ class Request extends Airtable
          */
 
         if (!isset($args['ATEndpoint'])){
-            die('You need to configure the Airtable Endpoint');
+            $this->addError('You need to configure the Airtable Endpoint');
         }
+
+        return true;
     }
 
-    public function postNewRecords($args)
+    // Assigns the data to the class properties
+    private function dataAssign($args)
     {
-        $key = $args['ATKey'];
+        $this->ATKey        =   $args['ATKey'];
+        $this->ATBase       =   $args['ATBase'];
+        $this->ATTable      =   $args['ATTable'];
+        $this->ATEndpoint   =   $args['ATEndpoint'];
 
+        if (isset($args['fieldData'])) {
+            $this->fieldArrayData   =   $args['fieldData'];
+        }
+
+        if (isset($args['filterByFormula'])) {
+            $this->filterByFormula  =   $args['filterByFormula'];
+        }
+
+        if (isset($args['recordsLimit'])) {
+            $this->recordsLimit     =   $args['recordsLimit'];
+        }
+
+        return true;
+    }
+
+    // The link termination for the request arguments if they are set
+    private function complementaryURL()
+    {
+        $link = null;
+
+        if (isset($this->recordsLimit) || isset($this->filterByFormula)){
+            $link = (isset($this->filterByFormula) || isset($this->recordsLimit) ? '/?' : false) . (isset($this->recordsLimit) ? '?maxRecords='.$this->recordsLimit : false) . (isset($this->filterByFormula) && isset($this->recordsLimit) ? '&' : false) . (isset($this->filterByFormula) ? 'filterByFormula=' . $this->filterByFormula:false);
+        }
+
+        return $link;
+    }
+
+    // Posts new records to Airtable
+    protected function postNewRecords()
+    {
         $con = curl_init();
+
         curl_setopt_array($con, array(
-            CURLOPT_URL => $args['ATEndpoint'] . $args['ATBase'] . '/' . $args['ATTable'] . '/',
+            CURLOPT_URL => $this->ATEndpoint . $this->ATBase . '/' . $this->ATTable . '/',
             CURLOPT_HTTPHEADER => array(
-                "authorization: Bearer $key",
+                "authorization: Bearer $this->ATKey",
                 "Content-Type: application/json"
             ),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode($args['fieldData'])
+            CURLOPT_POSTFIELDS => json_encode($this->fieldArrayData)
         ));
 
         $this->temporaryResponse = curl_exec($con);
@@ -157,14 +158,145 @@ class Request extends Airtable
             $this->addError(curl_error($con));
         }
 
+        curl_close($con);
+
         return $this;
     }
 
-    public function showResponse(){
+    // Dumps the response array
+    public function showResponse()
+    {
         $response = $this->temporaryResponse;
         var_dump($response);
+        $this->temporaryResponse = null;
+    }
+
+    // Returns the response array
+    public function returnResponse()
+    {
+        return $this->temporaryResponse;
+    }
+
+    // Retrieves records
+    protected function getRecords()
+    {
+        $con = curl_init();
+
+        curl_setopt_array($con, array(
+            CURLOPT_URL => $this->ATEndpoint . $this->ATBase . '/' . $this->ATTable . $this->complementaryURL(),
+            CURLOPT_HTTPHEADER => array(
+                "authorization: Bearer $this->ATKey",
+            ),
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_RETURNTRANSFER => true
+        ));
+
+        $this->temporaryResponse = curl_exec($con);
+
+        if (curl_error($con)){
+            $this->addError(curl_error($con));
+        }
+
+        curl_close($con);
+
+        return $this;
+    }
+
+    // Updates records
+    protected function updateRecord()
+    {
+        $con = curl_init();
+        $jsonData = json_encode($this->fieldArrayData);
+        $entry = json_decode($this->temporaryResponse);
+        $entryID = $entry->records[0]->id;
+
+        curl_setopt_array($con, array(
+            CURLOPT_URL => $this->ATEndpoint . $this->ATBase . '/' . $this->ATTable . '/' . $entryID,
+            CURLOPT_HTTPHEADER => array(
+                "authorization: Bearer $this->ATKey",
+                "Content-Type: application/json"
+            ),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => 'PATCH',
+            CURLOPT_POSTFIELDS => $jsonData
+        ));
+
+        $this->temporaryResponse = curl_exec($con);
+
+        if (curl_error($con)){
+            $this->addError(curl_error($con));
+        }
+
+        curl_close($con);
+
+        return $this;
+    }
+
+    // Deletes records
+    protected function deleteRecord()
+    {
+        $con = curl_init();
+        $jsonData = json_encode($this->fieldArrayData);
+        $entry = json_decode($this->temporaryResponse);
+        $entryID = $entry->records[0]->id;
+
+        curl_setopt_array($con, array(
+            CURLOPT_URL => $this->ATEndpoint . $this->ATBase . '/' . $this->ATTable . '/' . $entryID,
+            CURLOPT_HTTPHEADER => array(
+                "authorization: Bearer $this->ATKey",
+                "Content-Type: application/json"
+            ),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => 'DELETE'
+        ));
+
+        $this->temporaryResponse = curl_exec($con);
+
+        if (curl_error($con)){
+            $this->addError(curl_error($con));
+        }
+
+        curl_close($con);
+
+        return $this;
+    }
+
+    // Adds an error to the errors property
+    protected function addError($error)
+    {
+        array_push($this->errors,$error);
+    }
+
+
+    // Checks if there is any error
+    private function errorsExist()
+    {
+        if (!empty($this->errors)) {
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    // If errors exist displays them and kills the script
+    public function displayErrors()
+    {
+        if ($this->errorsExist()) {
+            $errors = $this->errors;
+
+            foreach ($errors as $error) {
+                echo $error;
+            }
+
+            $this->clearErrors();
+            die();
+        }
+    }
+
+    // Clears the errors
+    private function clearErrors()
+    {
+        unset($this->errors);
+        $this->errors = array();
     }
 }
-
-// DO THE FIELD DATA VALIDATION
-// FIGURE OUT WHY THE ARRAY VALIDATION DOESN'T WORK
