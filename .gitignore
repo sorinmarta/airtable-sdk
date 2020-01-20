@@ -1,0 +1,5 @@
+# Testing index.php file
+index.php
+
+# All the PHPStorm files
+.idea/*
